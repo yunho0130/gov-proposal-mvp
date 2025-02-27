@@ -1,53 +1,75 @@
 import streamlit as st
-from openai import OpenAI
+from anthropic import Anthropic
 
-# Show title and description.
-st.title("📄 Document question answering")
+# 제목과 설명 표시
+st.title("🏢 정부지원과제 사업계획서 작성기")
 st.write(
-    "Upload a document below and ask a question about it – GPT will answer! "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
+    "정부지원과제 공고문을 입력하고 회사 정보를 제공하면 AI가 사업계획서를 작성해드립니다! "
+    "이 앱을 사용하려면 Claude API 키가 필요합니다."
 )
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
+# Claude API 키 입력 받기
+claude_api_key = st.text_input("Claude API Key", type="password")
+if not claude_api_key:
+    st.info("Claude API 키를 입력해주세요.", icon="🗝️")
 else:
-
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
-
-    # Let the user upload a file via `st.file_uploader`.
-    uploaded_file = st.file_uploader(
-        "Upload a document (.txt or .md)", type=("txt", "md")
+    # Claude 클라이언트 생성
+    client = Anthropic(api_key=claude_api_key)
+    
+    # Claude 모델 선택
+    available_models = ["claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"]
+    selected_model = st.selectbox(
+        "사용할 API 모델을 선택하세요",
+        options=available_models
     )
 
-    # Ask the user for a question via `st.text_area`.
-    question = st.text_area(
-        "Now ask a question about the document!",
-        placeholder="Can you give me a short summary?",
-        disabled=not uploaded_file,
+    # 공고문 입력 받기
+    announcement = st.text_area(
+        "정부지원과제 공고문을 입력하세요",
+        height=200,
+        placeholder="공고 내용을 여기에 붙여넣기 해주세요..."
     )
 
-    if uploaded_file and question:
+    # 회사 정보 입력 받기
+    st.subheader("회사 정보")
+    company_name = st.text_input("회사명")
+    company_description = st.text_area("회사 소개", height=100)
+    business_area = st.text_input("주요 사업분야")
+    company_size = st.number_input("직원 수", min_value=1)
+    annual_revenue = st.number_input("연간 매출액(백만원)", min_value=0)
+    
+    if st.button("사업계획서 생성") and announcement and company_name:
+        # 입력 정보 구성
+        prompt = f"""
+        정부지원과제 공고문: {announcement}
+        
+        회사 정보:
+        - 회사명: {company_name}
+        - 회사 소개: {company_description}
+        - 주요 사업분야: {business_area}
+        - 직원 수: {company_size}명
+        - 연간 매출액: {annual_revenue}백만원
+        
+        위 정보를 바탕으로 30페이지 분량의 상세한 사업계획서를 작성해주세요.
+        다음 항목들을 포함해야 합니다:
+        1. 사업 개요
+        2. 기술성 분석
+        3. 시장성 분석
+        4. 사업화 계획
+        5. 재무 계획
+        6. 기대 효과
+        """
 
-        # Process the uploaded file and question.
-        document = uploaded_file.read().decode()
-        messages = [
-            {
-                "role": "user",
-                "content": f"Here's a document: {document} \n\n---\n\n {question}",
-            }
-        ]
-
-        # Generate an answer using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            stream=True,
-        )
-
-        # Stream the response to the app using `st.write_stream`.
-        st.write_stream(stream)
+        # Claude API를 사용하여 사업계획서 생성
+        with st.spinner('사업계획서를 생성하고 있습니다...'):
+            message = client.messages.create(
+                model=selected_model,
+                max_tokens=4000,
+                messages=[{
+                    "role": "user",
+                    "content": prompt
+                }]
+            )
+            
+            # 생성된 결과 표시
+            st.write(message.content)
