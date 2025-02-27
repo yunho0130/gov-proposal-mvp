@@ -1,23 +1,23 @@
 import streamlit as st
-from anthropic import Anthropic
+from openai import OpenAI
 
 # 제목과 설명 표시
 st.title("🏢 정부지원과제 사업계획서 작성기")
 st.write(
     "정부지원과제 공고문을 입력하고 회사 정보를 제공하면 AI가 사업계획서를 작성해드립니다! "
-    "이 앱을 사용하려면 Claude API 키가 필요합니다."
+    "이 앱을 사용하려면 OpenAI API 키가 필요합니다."
 )
 
-# Claude API 키 입력 받기
-claude_api_key = st.text_input("Claude API Key", type="password")
-if not claude_api_key:
-    st.info("Claude API 키를 입력해주세요.", icon="🗝️")
+# OpenAI API 키 입력 받기
+openai_api_key = st.text_input("OpenAI API Key", type="password")
+if not openai_api_key:
+    st.info("OpenAI API 키를 입력해주세요.", icon="🗝️")
 else:
-    # Claude 클라이언트 생성
-    client = Anthropic(api_key=claude_api_key)
+    # OpenAI 클라이언트 생성
+    client = OpenAI(api_key=openai_api_key)
     
-    # Claude 모델 선택
-    available_models = ["claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"]
+    # GPT 모델 선택
+    available_models = ["gpt-4-turbo-preview", "gpt-4", "gpt-3.5-turbo"]
     selected_model = st.selectbox(
         "사용할 API 모델을 선택하세요",
         options=available_models
@@ -60,11 +60,10 @@ else:
         6. 기대 효과
         """
 
-        # Claude API를 사용하여 사업계획서 생성
+        # OpenAI API를 사용하여 사업계획서 생성
         with st.spinner('사업계획서를 생성하고 있습니다...'):
-            message = client.messages.create(
+            response = client.chat.completions.create(
                 model=selected_model,
-                max_tokens=4000,
                 messages=[{
                     "role": "user",
                     "content": prompt
@@ -72,4 +71,4 @@ else:
             )
             
             # 생성된 결과 표시
-            st.write(message.content)
+            st.write(response.choices[0].message.content)
